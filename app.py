@@ -20,8 +20,8 @@ app = Flask(__name__, static_folder="public")
 app.config.update(
     DEBUG=True,
     SECRET_KEY="secret_sauce",
-    SESSION_COOKIE_HTTPONLY=False,
-    REMEMBER_COOKIE_HTTPONLY=False,
+    SESSION_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Strict",
 )
 CORS(app, supports_credentials=True)
