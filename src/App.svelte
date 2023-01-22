@@ -1,10 +1,12 @@
 <script>
   import { onMount} from "svelte";
+  import { io } from "socket.io-client";
 
   let username;
   let password;
   let isAuthenticated = false;
   let csrf = document.getElementsByName("csrf-token")[0].content;
+  var socket = io();
 
   onMount(() => {
     fetch("http://localhost:5000/api/getsession", {

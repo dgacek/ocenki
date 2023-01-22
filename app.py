@@ -8,8 +8,9 @@ from flask_login import (
     logout_user,
 )
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine, Column, String, Integer, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 from flask_socketio import SocketIO
 
 
@@ -27,27 +28,56 @@ login_manager.init_app(app)
 login_manager.session_protection = "strong"
 
 csrf = CSRFProtect(app)
-
 socketio = SocketIO(app)
 
-# database
-users = [
-    {
-        "id": 1,
-        "username": "test",
-        "password": "test",
-    }
-]
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String)
+    password = Column(String)
+
+    def __repr__(self) -> str:
+        return '{"id": %i, "username": "%s", "password": "%s"}' % (self.id, self.username, self.password)
 
 
-class User(UserMixin):
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True)
+    fromUserId = Column(Integer)
+    toUserId = Column(Integer)
+    text = Column(String)
+    date = Column(DateTime)
+
+    def __repr__(self) -> str:
+        return '{"id": %i, "fromUserId": %i, "toUserId": %i, "text": "%s", "date": "%s"}' % (self.id, self.fromUserId, self.toUserId, self.text, str(self.date))
+
+
+engine = create_engine("sqlite:///:memory:", echo=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+
+# create test user
+test_user = User(username="test", password="test")
+session = Session()
+session.add(test_user)
+session.commit()
+session.close()
+
+
+class SessionUser(UserMixin):
     ...
 
 
 def get_user(user_id: int):
-    for user in users:
-        if int(user["id"]) == int(user_id):
-            return user
+    session = Session()
+    for user in session.query(User).filter_by(id=user_id):
+        session.close()
+        return user
+    session.close()
     return None
 
 
@@ -55,8 +85,8 @@ def get_user(user_id: int):
 def user_loader(id: int):
     user = get_user(id)
     if user:
-        user_model = User()
-        user_model.id = user["id"]
+        user_model = SessionUser()
+        user_model.id = user.id
         return user_model
     return None
 
@@ -72,14 +102,16 @@ def login():
     data = request.json
     username = data.get("username")
     password = data.get("password")
+    session = Session()
 
-    for user in users:
-        if user["username"] == username and user["password"] == password:
-            user_model = User()
-            user_model.id = user["id"]
-            login_user(user_model)
-            return jsonify({"login": True})
+    for user in session.query(User).filter_by(username=username, password=password):
+        user_model = SessionUser()
+        user_model.id = user.id
+        login_user(user_model)
+        session.close()
+        return jsonify({"login": True})
 
+    session.close()
     return jsonify({"login": False})
 
 
@@ -87,7 +119,7 @@ def login():
 @login_required
 def user_data():
     user = get_user(current_user.id)
-    return jsonify({"username": user["username"]})
+    return jsonify({"username": user.username})
 
 
 @app.route("/api/getsession")
@@ -107,4 +139,3 @@ def logout():
 
 if __name__ == "__main__":
     socketio.run(app, debug=True, load_dotenv=True)
-    # app.run(debug=True, load_dotenv=True)
