@@ -6,17 +6,18 @@
   let password;
   let isAuthenticated = false;
   let csrf = document.getElementsByName("csrf-token")[0].content;
-  var socket = io();
+  var socket;
 
   onMount(() => {
-    fetch("http://localhost:5000/api/getsession", {
-      credentials: "same-origin",
+    fetch("/api/getsession", {
+      credentials: "include",
     })
     .then((res) => res.json())
     .then((data) => {
       console.log(data);
       if (data.login == true) {
         isAuthenticated = true;
+        socket = io();
       } else {
         isAuthenticated = false;
       }
@@ -33,7 +34,7 @@
         "Content-Type": "application/json",
         "X-CSRFToken": csrf,
       },
-      credentials: "same-origin",
+      credentials: "include",
       body: JSON.stringify({ username: username, password: password }),
     })
     .then((res) => res.json())
@@ -41,6 +42,7 @@
       console.log(data);
       if (data.login == true) {
         isAuthenticated = true;
+        socket = io();
       }
     })
     .catch((err) => {
@@ -55,7 +57,7 @@
         "Content-Type": "application/json",
         "X-CSRFToken": csrf,
       },
-      credentials: "same-origin",
+      credentials: "include",
     })
     .then((res) => res.json())
     .then((data) => {
@@ -69,10 +71,11 @@
 
   const logout = () => {
     fetch("/api/logout", {
-      credentials: "same-origin",
+      credentials: "include",
     })
     .then(() => {
       isAuthenticated = false;
+      socket.disconnect();
     })
     .catch((err) => {
       console.log(err);

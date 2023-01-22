@@ -1,3 +1,4 @@
+import functools
 from flask import Flask, jsonify, render_template, request
 from flask_login import (
     LoginManager,
@@ -11,21 +12,23 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, disconnect, emit
+from flask_cors import CORS
 
 
 app = Flask(__name__, static_folder="public")
 app.config.update(
     DEBUG=True,
     SECRET_KEY="secret_sauce",
-    SESSION_COOKIE_HTTPONLY=True,
-    REMEMBER_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_HTTPONLY=False,
+    REMEMBER_COOKIE_HTTPONLY=False,
     SESSION_COOKIE_SAMESITE="Strict",
 )
+CORS(app, supports_credentials=True)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.session_protection = "strong"
+login_manager.session_protection = "basic"
 
 csrf = CSRFProtect(app)
 socketio = SocketIO(app)
@@ -65,19 +68,26 @@ test_user = User(username="test", password="test")
 session = Session()
 session.add(test_user)
 session.commit()
-session.close()
 
 
 class SessionUser(UserMixin):
     ...
 
 
+def socketio_login_required(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated:
+            disconnect()
+        else:
+            return f(*args, **kwargs)
+    return wrapped
+
+
 def get_user(user_id: int):
     session = Session()
     for user in session.query(User).filter_by(id=user_id):
-        session.close()
         return user
-    session.close()
     return None
 
 
@@ -107,11 +117,9 @@ def login():
     for user in session.query(User).filter_by(username=username, password=password):
         user_model = SessionUser()
         user_model.id = user.id
-        login_user(user_model)
-        session.close()
+        login_user(user_model, remember=True)
         return jsonify({"login": True})
 
-    session.close()
     return jsonify({"login": False})
 
 
@@ -135,6 +143,18 @@ def check_session():
 def logout():
     logout_user()
     return jsonify({"logout": True})
+
+
+@socketio.on('connect')
+@socketio_login_required
+def connect_handler():
+    emit('user_joined', broadcast=True)
+    print("dupsko")
+
+@socketio.on('disconnect')
+def disconnect_handler():
+    emit('user_left', broadcast=True)
+    print("kupsko")
 
 
 if __name__ == "__main__":
