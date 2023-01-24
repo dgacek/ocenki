@@ -25,6 +25,8 @@ app.config.update(
 )
 CORS(app, supports_credentials=True)
 
+crypt_salt = "menpwgra"
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.session_protection = "basic"
@@ -66,7 +68,7 @@ db.metadata.create_all(engine)
 dbsession = sessionmaker(bind=engine)
 
 # create test user
-test_user = User(username="test", password=sha512_crypt.hash("test"))
+test_user = User(username="test", password=sha512_crypt.hash("test", salt=crypt_salt))
 session = dbsession()
 session.add(test_user)
 session.commit()
@@ -107,13 +109,29 @@ def login():
     session = dbsession()
 
     for user in session.query(User).filter_by(username=username):
-        if sha512_crypt.verify(password, user.password):
+        if sha512_crypt.verify(password, user.password, salt=crypt_salt):
             user_model = SessionUser()
             user_model.id = user.id
             login_user(user_model, remember=True)
             return jsonify({"login": True})
 
     return jsonify({"login": False})
+
+
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    session = dbsession()
+
+    for user in session.query(User).filter_by(username=username):
+        return jsonify({"register": False})
+
+    user = User(username=username, password=sha512_crypt.hash(password, salt=crypt_salt))
+    session.add(user)
+    session.commit()
+    return jsonify({"register": True})
 
 
 @app.route("/api/data", methods=["GET"])
