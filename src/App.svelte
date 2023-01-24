@@ -4,7 +4,6 @@
 
 <script>
   import { onMount } from "svelte";
-  import { Container } from 'sveltestrap'
 
   let username;
   let password;
@@ -51,6 +50,28 @@
     });
   };
 
+  const register = () => {
+    fetch("/api/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ username: username, password: password }),
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data);
+      if (data.register == false) {
+        console.log("register failed");
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  };
+
   const whoami = () => {
     fetch("/api/data", {
       method: "GET",
@@ -83,20 +104,52 @@
   };
 </script>
 
-<Container sm>
-  {#if isAuthenticated}
-    <h1>You are authenticated!</h1>
-    <button type="button" on:click={whoami}>whoami</button>
-    <button type="button" on:click={logout}>logout</button>
-  {:else}
-    <h1>Log in</h1>
-    <form id="form">
-      username:
-      <input type="text" bind:value={username} />
-      <br /><br />
-      password:
-      <input type="password" bind:value={password} /><br /><br />
-      <button type="button" on:click={login}>login</button>
-    </form>
-  {/if}
-</Container>
+<style>
+  :global(body) {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+  }
+
+  .background {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navbar {
+    width: 100%;
+    height: 100px;
+  }
+
+  .login {
+    height: fit-content;
+    width: fit-content;
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+</style>
+
+
+<div class="text-white bg-dark background">
+  <div class="login" sm>
+    {#if isAuthenticated}
+      <h1>You are authenticated!</h1>
+      <button type="button" on:click={whoami}>whoami</button>
+      <button type="button" on:click={logout}>logout</button>
+    {:else}
+      <h1>Log in</h1>
+      <form id="form">
+        username:
+        <input type="text" bind:value={username} />
+        <br /><br />
+        password:
+        <input type="password" bind:value={password} /><br /><br />
+        <button type="button" on:click={login}>login</button>
+        <button type="button" on:click={register}>register</button>
+      </form>
+    {/if}
+  </div>
+</div>

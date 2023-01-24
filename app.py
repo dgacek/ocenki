@@ -1,3 +1,4 @@
+import base64
 from flask import Flask, jsonify, render_template, request
 from flask_login import (
     LoginManager,
@@ -14,6 +15,11 @@ from sqlalchemy.pool import StaticPool
 from flask_cors import CORS
 from passlib.hash import sha512_crypt
 
+crypt_salt = "menpwgra"
+spotify_client_id = "88acafcfdefa48ff962c05ad0df9bcb5"
+spotify_client_secret = "60475eb74e474702bbb80564b88b480f"
+
+crypt = sha512_crypt(salt=crypt_salt, rounds=656000)
 
 app = Flask(__name__, static_folder="public")
 app.config.update(
@@ -24,8 +30,6 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Strict",
 )
 CORS(app, supports_credentials=True)
-
-crypt_salt = "menpwgra"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -68,7 +72,7 @@ db.metadata.create_all(engine)
 dbsession = sessionmaker(bind=engine)
 
 # create test user
-test_user = User(username="test", password=sha512_crypt.hash("test", salt=crypt_salt))
+test_user = User(username="test", password=crypt.hash("test"))
 session = dbsession()
 session.add(test_user)
 session.commit()
@@ -109,7 +113,7 @@ def login():
     session = dbsession()
 
     for user in session.query(User).filter_by(username=username):
-        if sha512_crypt.verify(password, user.password, salt=crypt_salt):
+        if crypt.verify(password, user.password):
             user_model = SessionUser()
             user_model.id = user.id
             login_user(user_model, remember=True)
@@ -128,7 +132,7 @@ def register():
     for user in session.query(User).filter_by(username=username):
         return jsonify({"register": False})
 
-    user = User(username=username, password=sha512_crypt.hash(password, salt=crypt_salt))
+    user = User(username=username, password=crypt.hash(password))
     session.add(user)
     session.commit()
     return jsonify({"register": True})
