@@ -1,4 +1,3 @@
-import functools
 from flask import Flask, jsonify, render_template, request
 from flask_login import (
     LoginManager,
@@ -9,10 +8,9 @@ from flask_login import (
     logout_user,
 )
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import create_engine, Column, String, Integer, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, String, Integer, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.pool import StaticPool
-from flask_socketio import SocketIO, disconnect, emit
 from flask_cors import CORS
 
 
@@ -31,41 +29,55 @@ login_manager.init_app(app)
 login_manager.session_protection = "basic"
 
 csrf = CSRFProtect(app)
-socketio = SocketIO(app)
 
-Base = declarative_base()
+db = declarative_base()
 
-class User(Base):
+class Rating(db):
+    __tablename__ = "ratings"
+
+    id = Column(Integer, primary_key=True)
+    rating = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    album_id = Column(Integer, ForeignKey("albums.id"))
+    
+    user = relationship("User", back_populates="ratings")
+    album = relationship("Album", back_populates="ratings")
+
+    def __repr__(self) -> str:
+        return '{"id": %i, "rating": "%i", "user_id": "%i", "album_id": "%i"}' % (self.id, self.rating, self.user_id, self.album_id)
+
+
+class User(db):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
     username = Column(String)
     password = Column(String)
+    ratings = relationship("Rating", order_by=Rating.id, back_populates="user")
 
     def __repr__(self) -> str:
         return '{"id": %i, "username": "%s", "password": "%s"}' % (self.id, self.username, self.password)
 
 
-class Message(Base):
-    __tablename__ = "messages"
+class Album(db):
+    __tablename__ = "albums"
 
     id = Column(Integer, primary_key=True)
-    fromUserId = Column(Integer)
-    toUserId = Column(Integer)
-    text = Column(String)
-    date = Column(DateTime)
+    spotify_uri = Column(String)
+    ratings = relationship("Rating", order_by=Rating.id, back_populates="album")
 
     def __repr__(self) -> str:
-        return '{"id": %i, "fromUserId": %i, "toUserId": %i, "text": "%s", "date": "%s"}' % (self.id, self.fromUserId, self.toUserId, self.text, str(self.date))
-
+        return '{"id": %i, "spotify_uri": "%s"}' % (self.id, self.spotify_uri)
+    
 
 engine = create_engine("sqlite:///:memory:", echo=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
+# engine = create_engine("sqlite:///database.db", echo=True)
+db.metadata.create_all(engine)
+dbsession = sessionmaker(bind=engine)
 
 # create test user
 test_user = User(username="test", password="test")
-session = Session()
+session = dbsession()
 session.add(test_user)
 session.commit()
 
@@ -74,18 +86,8 @@ class SessionUser(UserMixin):
     ...
 
 
-def socketio_login_required(f):
-    @functools.wraps(f)
-    def wrapped(*args, **kwargs):
-        if not current_user.is_authenticated:
-            disconnect()
-        else:
-            return f(*args, **kwargs)
-    return wrapped
-
-
 def get_user(user_id: int):
-    session = Session()
+    session = dbsession()
     for user in session.query(User).filter_by(id=user_id):
         return user
     return None
@@ -112,7 +114,7 @@ def login():
     data = request.json
     username = data.get("username")
     password = data.get("password")
-    session = Session()
+    session = dbsession()
 
     for user in session.query(User).filter_by(username=username, password=password):
         user_model = SessionUser()
@@ -145,17 +147,5 @@ def logout():
     return jsonify({"logout": True})
 
 
-@socketio.on('connect')
-@socketio_login_required
-def connect_handler():
-    emit('user_joined', broadcast=True)
-    print("dupsko")
-
-@socketio.on('disconnect')
-def disconnect_handler():
-    emit('user_left', broadcast=True)
-    print("kupsko")
-
-
 if __name__ == "__main__":
-    socketio.run(app, debug=True, load_dotenv=True)
+    app.run(debug=True, load_dotenv=True)

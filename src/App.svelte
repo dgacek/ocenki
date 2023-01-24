@@ -1,12 +1,12 @@
 <script>
   import { onMount} from "svelte";
-  import { io } from "socket.io-client";
 
   let username;
   let password;
   let isAuthenticated = false;
   let csrf = document.getElementsByName("csrf-token")[0].content;
-  var socket;
+
+  
 
   onMount(() => {
     fetch("/api/getsession", {
@@ -17,7 +17,6 @@
       console.log(data);
       if (data.login == true) {
         isAuthenticated = true;
-        socket = io();
       } else {
         isAuthenticated = false;
       }
@@ -42,7 +41,6 @@
       console.log(data);
       if (data.login == true) {
         isAuthenticated = true;
-        socket = io();
       }
     })
     .catch((err) => {
@@ -75,7 +73,6 @@
     })
     .then(() => {
       isAuthenticated = false;
-      socket.disconnect();
     })
     .catch((err) => {
       console.log(err);
