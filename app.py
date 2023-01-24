@@ -8,10 +8,11 @@ from flask_login import (
     logout_user,
 )
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import create_engine, Column, String, Integer, ForeignKey
+from sqlalchemy import create_engine, Column, String, Integer, ForeignKey, Index
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.pool import StaticPool
 from flask_cors import CORS
+from passlib.hash import sha512_crypt
 
 
 app = Flask(__name__, static_folder="public")
@@ -38,10 +39,10 @@ class Rating(db):
     id = Column(Integer, primary_key=True)
     rating = Column(Integer)
     user_id = Column(Integer, ForeignKey("users.id"))
-    album_id = Column(Integer, ForeignKey("albums.id"))
+    album_spotify_id = Column(String)
     
     user = relationship("User", back_populates="ratings")
-    album = relationship("Album", back_populates="ratings")
+    Index("ratings:album_spotify_id", album_spotify_id)
 
     def __repr__(self) -> str:
         return '{"id": %i, "rating": "%i", "user_id": "%i", "album_id": "%i"}' % (self.id, self.rating, self.user_id, self.album_id)
@@ -57,17 +58,6 @@ class User(db):
 
     def __repr__(self) -> str:
         return '{"id": %i, "username": "%s", "password": "%s"}' % (self.id, self.username, self.password)
-
-
-class Album(db):
-    __tablename__ = "albums"
-
-    id = Column(Integer, primary_key=True)
-    spotify_uri = Column(String)
-    ratings = relationship("Rating", order_by=Rating.id, back_populates="album")
-
-    def __repr__(self) -> str:
-        return '{"id": %i, "spotify_uri": "%s"}' % (self.id, self.spotify_uri)
     
 
 engine = create_engine("sqlite:///:memory:", echo=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -76,7 +66,7 @@ db.metadata.create_all(engine)
 dbsession = sessionmaker(bind=engine)
 
 # create test user
-test_user = User(username="test", password="test")
+test_user = User(username="test", password=sha512_crypt.hash("test"))
 session = dbsession()
 session.add(test_user)
 session.commit()
@@ -116,11 +106,12 @@ def login():
     password = data.get("password")
     session = dbsession()
 
-    for user in session.query(User).filter_by(username=username, password=password):
-        user_model = SessionUser()
-        user_model.id = user.id
-        login_user(user_model, remember=True)
-        return jsonify({"login": True})
+    for user in session.query(User).filter_by(username=username):
+        if sha512_crypt.verify(password, user.password):
+            user_model = SessionUser()
+            user_model.id = user.id
+            login_user(user_model, remember=True)
+            return jsonify({"login": True})
 
     return jsonify({"login": False})
 
