@@ -1,4 +1,4 @@
-import base64
+import base64, datetime, requests
 from flask import Flask, jsonify, render_template, request
 from flask_login import (
     LoginManager,
@@ -18,6 +18,35 @@ from passlib.hash import sha512_crypt
 crypt_salt = "menpwgra"
 spotify_client_id = "88acafcfdefa48ff962c05ad0df9bcb5"
 spotify_client_secret = "60475eb74e474702bbb80564b88b480f"
+
+class SpotifyToken:
+    def __init__(self, token, expiry_date):
+        self.token = token
+        self.expiry_date = expiry_date
+
+
+spotify_token = SpotifyToken("", datetime.datetime.now())
+
+def get_spotify_token(current_token):
+    if current_token.token == "" or datetime.datetime.now() > current_token.expiry_date:
+        auth_input = spotify_client_id + ":" + spotify_client_secret
+        auth = base64.b64encode(auth_input.encode("ascii"))
+        auth_string = auth.decode("ascii")
+        data = requests.post("https://accounts.spotify.com/api/token", 
+        data={
+            "grant_type": "client_credentials"
+        }, 
+        headers={
+            "Authorization": "Basic " + auth_string,
+            "Content-Type": "application/x-www-form-urlencoded"
+        })
+        response = data.json()
+        expires_in = response["expires_in"]
+        return SpotifyToken(response["access_token"], datetime.datetime.now() + datetime.timedelta(seconds=expires_in))
+    return current_token
+
+
+spotify_token = get_spotify_token(spotify_token)
 
 crypt = sha512_crypt(salt=crypt_salt, rounds=656000)
 
@@ -143,6 +172,14 @@ def register():
 def user_data():
     user = get_user(current_user.id)
     return jsonify({"username": user.username})
+
+
+@app.route("/api/search", methods=["GET"])
+@login_required
+def search():
+    query = request.args["q"]
+    response = requests.get("https://api.spotify.com/v1/search?q="+query+"&type=album", headers={"Authorization": "Bearer "+get_spotify_token(spotify_token)["token"]})
+    return response.json()
 
 
 @app.route("/api/getsession")

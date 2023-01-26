@@ -106,9 +106,8 @@
 
 <style>
   :global(body) {
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
+    margin: 0;
+    padding: 0;
   }
 
   .background {
@@ -150,6 +149,7 @@
         <button type="button" on:click={login}>login</button>
         <button type="button" on:click={register}>register</button>
       </form>
+      <a href="/test">test</a>
     {/if}
   </div>
 </div>
