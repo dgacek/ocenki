@@ -14,6 +14,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.pool import StaticPool
 from flask_cors import CORS
 from passlib.hash import sha512_crypt
+from jsonpath_ng import jsonpath, parse
 
 crypt_salt = "menpwgra"
 spotify_client_id = "88acafcfdefa48ff962c05ad0df9bcb5"
@@ -30,8 +31,7 @@ spotify_token = SpotifyToken("", datetime.datetime.now())
 def get_spotify_token(current_token):
     if current_token.token == "" or datetime.datetime.now() > current_token.expiry_date:
         auth_input = spotify_client_id + ":" + spotify_client_secret
-        auth = base64.b64encode(auth_input.encode("ascii"))
-        auth_string = auth.decode("ascii")
+        auth_string = base64.b64encode(auth_input.encode("ascii")).decode("ascii")
         data = requests.post("https://accounts.spotify.com/api/token", 
         data={
             "grant_type": "client_credentials"
@@ -179,13 +179,16 @@ def user_data():
 def search():
     query = request.args["q"]
     response = requests.get("https://api.spotify.com/v1/search?q="+query+"&type=album", headers={"Authorization": "Bearer "+get_spotify_token(spotify_token)["token"]})
-    return response.json()
+    jsonpath_exp = parse('$.albums.items[*]')
+    result = jsonpath_exp.find(response.json())
+    return result
 
 
 @app.route("/api/getsession")
 def check_session():
     if current_user.is_authenticated:
-        return jsonify({"login": True})
+        user = get_user(current_user.id)
+        return jsonify({"login": True, "username": user.username})
 
     return jsonify({"login": False})
 
