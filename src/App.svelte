@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { JSONPath } from '../node_modules/jsonpath-plus/dist/index-browser-esm.js';
 
   let username;
   let password;
@@ -8,6 +9,8 @@
   let currentPage = "main" //main, profile
   let loginAlertContainer;
   let searchQuery;
+  let mainAlbumList;
+  let profileAlbumList;
   
 
   onMount(() => {
@@ -16,7 +19,6 @@
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         if (data.login == true) {
           isAuthenticated = true;
           username = data.username;
@@ -39,6 +41,24 @@
           ].join('')
   }
 
+  const buildList = (albums) => {
+    let result = "";
+    albums.items.forEach(element => {
+      result += [
+        `<li class="list-group-item">`,
+        ` <img src="${element.images[1].url}" class="img-thumbnail float-start me-2" width="200" height="200">`,
+        ` <div>`,
+        `   <small class="text-muted">${element.album_type}</small><br>`,
+        `   <h3>${element.name}</h3><br>`,
+        `   <p class="text-muted">${JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>`,
+        `   <small class="text-muted">${element.release_date.split("-")[0]}</small>`,
+        ` </div>`,
+        `</li>\n`
+      ].join('')
+    });
+    return result;
+  }
+
   const login = () => {
     fetch("/api/login", {
       method: "POST",
@@ -51,7 +71,6 @@
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         if (data.login == true) {
           isAuthenticated = true;
           password = "";
@@ -76,7 +95,6 @@
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         if (data.register == false) {
           loginAlertContainer.innerHTML = createAlert("danger", "Register failed - user already exists");
         } else {
@@ -94,6 +112,24 @@
     })
       .then(() => {
         isAuthenticated = false;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
+  const search = () => {
+    fetch(`/api/search?q=${searchQuery.replace('&', '%26')}`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "X-CSRFToken": csrf
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        mainAlbumList.innerHTML = buildList(data.albums);
       })
       .catch((err) => {
         console.log(err);
@@ -176,19 +212,19 @@
   </header>
 
   {#if currentPage === "main"}
-    <div class="container-xxl mt-3">
+    <div class="container-sm mt-3">
       <div class="row justify-content-center">
-        <div class="col-6">
-          <div class="input-group">
-            <input class="form-control form-control-lg" type="text" bind:value={searchQuery} placeholder="Search">
-            <button class="btn btn-outline-secondary" type="button">
-              <span class="material-symbols-outlined pt-2">
-                search
-              </span>
-            </button>
-          </div>
+        <div class="input-group">
+          <input class="form-control form-control-lg" type="text" bind:value={searchQuery} placeholder="Search">
+          <button class="btn btn-outline-secondary" type="button" on:click={search}>
+            <span class="material-symbols-outlined pt-2">
+              search
+            </span>
+          </button>
         </div>
       </div>
+      <ul class="list-group" bind:this={mainAlbumList}>
+      </ul>
     </div>
   {:else if currentPage === "profile"}
     <h1>user profile ({username})</h1>

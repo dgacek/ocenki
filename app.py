@@ -14,7 +14,6 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.pool import StaticPool
 from flask_cors import CORS
 from passlib.hash import sha512_crypt
-from jsonpath_ng import jsonpath, parse
 
 crypt_salt = "menpwgra"
 spotify_client_id = "88acafcfdefa48ff962c05ad0df9bcb5"
@@ -178,10 +177,8 @@ def user_data():
 @login_required
 def search():
     query = request.args["q"]
-    response = requests.get("https://api.spotify.com/v1/search?q="+query+"&type=album", headers={"Authorization": "Bearer "+get_spotify_token(spotify_token)["token"]})
-    jsonpath_exp = parse('$.albums.items[*]')
-    result = jsonpath_exp.find(response.json())
-    return result
+    response = requests.get("https://api.spotify.com/v1/search?q="+query+"&type=album", headers={"Authorization": "Bearer "+get_spotify_token(spotify_token).token})
+    return response.json()
 
 
 @app.route("/api/getsession")

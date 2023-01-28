@@ -18,6 +18,8 @@
     "svelte": "^3.0.0"
   },
   "dependencies": {
+    "jsonpath-plus": "^7.2.0",
+    "rollup-plugin-polyfill-node": "^0.12.0",
     "sirv-cli": "^2.0.0",
     "socket.io-client": "^4.5.4"
   }
