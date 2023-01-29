@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { JSONPath } from '../node_modules/jsonpath-plus/dist/index-browser-esm.js';
 
+
   let username;
   let password;
   let isAuthenticated = false;
@@ -9,8 +10,7 @@
   let currentPage = "main" //main, profile
   let loginAlertContainer;
   let searchQuery;
-  let mainAlbumList;
-  let profileAlbumList;
+  let items = [];
   
 
   onMount(() => {
@@ -41,23 +41,6 @@
           ].join('')
   }
 
-  const buildList = (albums) => {
-    let result = "";
-    albums.items.forEach(element => {
-      result += [
-        `<li class="list-group-item">`,
-        ` <img src="${element.images[1].url}" class="img-thumbnail float-start me-2" width="200" height="200">`,
-        ` <div>`,
-        `   <small class="text-muted">${element.album_type}</small><br>`,
-        `   <h3>${element.name}</h3><br>`,
-        `   <p class="text-muted">${JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>`,
-        `   <small class="text-muted">${element.release_date.split("-")[0]}</small>`,
-        ` </div>`,
-        `</li>\n`
-      ].join('')
-    });
-    return result;
-  }
 
   const login = () => {
     fetch("/api/login", {
@@ -83,6 +66,7 @@
       });
   };
 
+
   const register = () => {
     fetch("/api/register", {
       method: "POST",
@@ -106,17 +90,20 @@
       });
   };
 
+
   const logout = () => {
     fetch("/api/logout", {
       credentials: "include",
     })
       .then(() => {
         isAuthenticated = false;
+        items = [];
       })
       .catch((err) => {
         console.log(err);
       });
   };
+
 
   const search = () => {
     fetch(`/api/search?q=${searchQuery.replace('&', '%26')}`, {
@@ -128,8 +115,7 @@
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
-        mainAlbumList.innerHTML = buildList(data.albums);
+        items = data.albums.items
       })
       .catch((err) => {
         console.log(err);
@@ -137,11 +123,13 @@
   };
 </script>
 
+
 <svelte:head>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,100,1,0" />
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 </svelte:head>
+
 
 <style>
   :global(body) {
@@ -176,6 +164,7 @@
   }
 </style>
   
+
 {#if isAuthenticated}
   <header class="navbar navbar-expand-lg bg-dark navbar-dark">
     <div class="container-fluid">
@@ -223,7 +212,25 @@
           </button>
         </div>
       </div>
-      <ul class="list-group" bind:this={mainAlbumList}>
+      <ul class="list-group">
+        {#each items as element}
+        <li class="list-group-item">
+          <img src="{element.images[1].url}" class="img-thumbnail float-start me-2" width="200" height="200" alt="thumbnail">
+          <div>
+            <small class="text-muted">{element.album_type}</small><br>
+            <h3>{element.name}</h3><br>
+            <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
+            <small class="text-muted">{element.release_date.split("-")[0]}</small>
+          </div>
+          <div class="float-end">
+            {#if element.average_rating === -1}
+              <p class="text-muted">No ratings</p>
+            {:else}
+              <p class="display-4">{element.average_rating}</p>
+            {/if}
+          </div>
+        </li>
+        {/each}
       </ul>
     </div>
   {:else if currentPage === "profile"}

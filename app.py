@@ -106,6 +106,42 @@ session.add(test_user)
 session.commit()
 
 
+def get_average_rating(spotify_album_id):
+    rating_sum = 0
+    rating_count = 0
+    session = dbsession()
+    for instance in session.query(Rating).filter(Rating.album_spotify_id == spotify_album_id):
+        rating_sum += instance.rating
+        rating_count += 1
+    
+    if rating_count > 0:
+        return int(rating_sum/rating_count)
+
+    return -1
+
+
+def get_ratings_count(spotify_album_id):
+    return session.query(Rating).filter(Rating.album_spotify_id == spotify_album_id).count()
+
+
+def get_current_user_rating(spotify_album_id, current_user_id):
+    session = dbsession()
+    for instance in session.query(Rating).filter(Rating.album_spotify_id == spotify_album_id, Rating.user_id == current_user_id):
+        return instance.rating
+
+    return -1
+
+
+def append_ratings(search_output, current_user_id):
+    result = search_output
+    for x in range(len(search_output["albums"]["items"])):
+        result["albums"]["items"][x]["average_rating"] = get_average_rating(search_output["albums"]["items"][x]["id"])
+        result["albums"]["items"][x]["ratings_count"] = get_ratings_count(search_output["albums"]["items"][x]["id"])
+        result["albums"]["items"][x]["current_user_rating"] = get_current_user_rating(search_output["albums"]["items"][x]["id"], current_user_id)
+
+    return result
+
+
 class SessionUser(UserMixin):
     ...
 
@@ -178,7 +214,7 @@ def user_data():
 def search():
     query = request.args["q"]
     response = requests.get("https://api.spotify.com/v1/search?q="+query+"&type=album", headers={"Authorization": "Bearer "+get_spotify_token(spotify_token).token})
-    return response.json()
+    return append_ratings(response.json(), current_user.id)
 
 
 @app.route("/api/getsession")
