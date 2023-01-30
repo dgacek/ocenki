@@ -101,8 +101,10 @@ dbsession = sessionmaker(bind=engine)
 
 # create test user
 test_user = User(username="test", password=crypt.hash("test"))
+test_rating = Rating(album_spotify_id="2wy9EzWP9NuyVt4TSCz3qs", rating=69, user=test_user)
 session = dbsession()
 session.add(test_user)
+session.add(test_rating)
 session.commit()
 
 

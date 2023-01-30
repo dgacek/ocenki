@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+    import { element } from "svelte/internal";
   import { JSONPath } from '../node_modules/jsonpath-plus/dist/index-browser-esm.js';
 
 
@@ -216,18 +217,28 @@
         {#each items as element}
         <li class="list-group-item">
           <img src="{element.images[1].url}" class="img-thumbnail float-start me-2" width="200" height="200" alt="thumbnail">
-          <div>
-            <small class="text-muted">{element.album_type}</small><br>
-            <h3>{element.name}</h3><br>
-            <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
-            <small class="text-muted">{element.release_date.split("-")[0]}</small>
-          </div>
-          <div class="float-end">
-            {#if element.average_rating === -1}
-              <p class="text-muted">No ratings</p>
-            {:else}
-              <p class="display-4">{element.average_rating}</p>
-            {/if}
+          <div class="row">
+            <div class="col">
+              <small class="text-muted">{element.album_type}</small><br>
+              <h3>{element.name}</h3><br>
+              <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
+              <small class="text-muted">{element.release_date.split("-")[0]}</small>
+            </div>
+            <div class="col text-end">
+              {#if element.average_rating === -1}
+                <p class="text-muted">No ratings</p>
+              {:else}
+                <figure class="figure img-thumbnail bg-light">
+                  <p class="display-4">{element.average_rating/10}</p>
+                </figure><br>
+                <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
+              {/if}
+              {#if element.current_user_rating === -1}
+                <p class="text-muted">Not yet rated by you</p>
+              {:else}
+                <p class="text-muted">Your rating: {element.current_user_rating}</p>
+              {/if}
+            </div>
           </div>
         </li>
         {/each}
