@@ -219,6 +219,31 @@ def search():
     return append_ratings(response.json(), current_user.id)
 
 
+@app.route("/api/rate", methods=["POST"])
+@login_required
+def create_rating():
+    data = request.json
+    album_id = data.get("album_id")
+    rating = data.get("rating")
+    session = dbsession()
+    session.add(Rating(album_spotify_id=album_id, user_id=current_user.id, rating=rating))
+    session.commit()
+    return jsonify({"average_rating": get_average_rating(album_id), "ratings_count": get_ratings_count(album_id), "current_user_rating": rating})
+
+
+@app.route("/api/rate", methods=["PATCH"])
+@login_required
+def update_rating():
+    data = request.json
+    album_id = data.get("album_id")
+    rating = data.get("rating")
+    session = dbsession()
+    record = session.query(Rating).filter_by(user_id=current_user.id, album_spotify_id=album_id).first()
+    record.rating = rating
+    session.commit()
+    return jsonify({"average_rating": get_average_rating(album_id), "ratings_count": get_ratings_count(album_id), "current_user_rating": rating})
+
+
 @app.route("/api/getsession")
 def check_session():
     if current_user.is_authenticated:

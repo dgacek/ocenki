@@ -1,6 +1,5 @@
 <script>
   import { onMount } from "svelte";
-    import { element } from "svelte/internal";
   import { JSONPath } from '../node_modules/jsonpath-plus/dist/index-browser-esm.js';
 
 
@@ -12,7 +11,7 @@
   let loginAlertContainer;
   let searchQuery;
   let items = [];
-  let rangeValue;
+  let rangeValue = 50;
   
 
   onMount(() => {
@@ -100,6 +99,7 @@
       .then(() => {
         isAuthenticated = false;
         items = [];
+        searchQuery = "";
       })
       .catch((err) => {
         console.log(err);
@@ -117,12 +117,58 @@
     })
       .then((res) => res.json())
       .then((data) => {
-        items = data.albums.items
+        items = data.albums.items;
       })
       .catch((err) => {
         console.log(err);
       });
   };
+
+
+  const rate = (album_id, array_index) => {
+    fetch("/api/rate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ album_id: album_id, rating: rangeValue }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.bootstrap.Collapse.getInstance(document.getElementById(`collapse${album_id}`)).hide();
+        items[array_index].average_rating = data.average_rating;
+        items[array_index].ratings_count = data.ratings_count;
+        items[array_index].current_user_rating = data.current_user_rating;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
+  const rate_update = (album_id, array_index) => {
+    fetch("/api/rate", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ album_id: album_id, rating: rangeValue }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.bootstrap.Collapse.getInstance(document.getElementById(`collapse${album_id}`)).hide();
+        items[array_index].average_rating = data.average_rating;
+        items[array_index].ratings_count = data.ratings_count;
+        items[array_index].current_user_rating = data.current_user_rating;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
 </script>
 
 
@@ -175,15 +221,19 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item">
             {#if currentPage === "main"}
+              <!-- svelte-ignore a11y-invalid-attribute -->
               <a class="nav-link active" href="#">Home</a>
             {:else}
+              <!-- svelte-ignore a11y-invalid-attribute -->
               <a class="nav-link" on:click={() => {currentPage = "main"}} href="#">Home</a>
             {/if}
           </li>
           <li class="nav-item">
             {#if currentPage === "profile"}
+              <!-- svelte-ignore a11y-invalid-attribute -->
               <a class="nav-link active" href="#">My ratings</a>
             {:else}
+              <!-- svelte-ignore a11y-invalid-attribute -->
               <a class="nav-link" on:click={() => {currentPage = "profile"}} href="#">My ratings</a>
             {/if}
           </li>
@@ -195,6 +245,7 @@
           <ul class="dropdown-menu dropdown-menu-lg-end">
             <div class="ps-3"><small>Logged in as</small><br>{username}</div>
             <li><hr class="dropdown-divider"></li>
+            <!-- svelte-ignore a11y-invalid-attribute -->
             <li><a class="dropdown-item text-danger" href="#" on:click={logout}>Logout</a></li>
           </ul>
         </div>
@@ -233,28 +284,37 @@
                   {#if element.average_rating === -1}
                     <p class="text-muted">No ratings</p>
                   {:else}
-                    <figure class="figure img-thumbnail bg-light">
-                      <p class="display-4">{element.average_rating/10}</p>
+                    <figure class="figure img-thumbnail {element.average_rating < 40 ? "bg-danger" : (element.average_rating < 70 ? "bg-warning" : "bg-success")}" style="--bs-bg-opacity: .5;">
+                      <p class="display-4">{element.average_rating === 100 ? element.average_rating/10 : (element.average_rating/10).toFixed(1)}</p>
                     </figure><br>
                     <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
                   {/if}
                   {#if element.current_user_rating === -1}
                     <p class="text-muted">Not yet rated by you</p>
-                  {:else}
-                    <p class="text-muted">Your rating: {element.current_user_rating}</p>
-                  {/if}
                     <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}">Rate</button>
+                  {:else}
+                    <p class="text-muted">Your rating: {element.current_user_rating === 100 ? element.current_user_rating/10 : (element.current_user_rating/10).toFixed(1)}</p>
+                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}" on:click={() => rangeValue = element.current_user_rating}>Change rating</button>
+                  {/if}
                 </div>
               </div>
               <div class="collapse mt-3" id="collapse{element.id}">
                 <div class="card card-body">
-                  <div class="row align-items-center justify-content-end">
-                    <div class="col">
-                      <label for="range{element.id}" class="form-label">Your rating: {rangeValue/10 ? rangeValue/10 : ''}</label>
+                  <div class="row align-items-center justify-content-evenly">
+                    <div class="col-2 justify-content-center">
+                      <figure class="figure img-thumbnail {rangeValue < 40 ? "bg-danger" : (rangeValue < 70 ? "bg-warning" : "bg-success")}" style="--bs-bg-opacity: .5;">
+                        <p class="display-4">{rangeValue === 100 ? rangeValue/10 : (rangeValue/10).toFixed(1)}</p>
+                      </figure>
+                    </div>
+                    <div class="col justify-content-center">
                       <input type="range" class="form-range" id="range{element.id}" min="0" max="100" step="5" bind:value={rangeValue}>
                     </div>
-                    <div class="col">
-                      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}">test_close</button>
+                    <div class="col-2 justify-content-center">
+                      {#if element.current_user_rating === -1}
+                        <button class="btn btn-primary" type="button" on:click={() => {rate(element.id, items.indexOf(element))}}>Rate</button>
+                      {:else}
+                        <button class="btn btn-primary" type="button" on:click={() => {rate_update(element.id, items.indexOf(element))}}>Change rating</button>
+                      {/if}
                     </div>
                   </div>
                 </div>
