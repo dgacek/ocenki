@@ -12,6 +12,7 @@
   let loginAlertContainer;
   let searchQuery;
   let items = [];
+  let rangeValue;
   
 
   onMount(() => {
@@ -216,28 +217,48 @@
       <ul class="list-group">
         {#each items as element}
         <li class="list-group-item">
-          <img src="{element.images[1].url}" class="img-thumbnail float-start me-2" width="200" height="200" alt="thumbnail">
           <div class="row">
-            <div class="col">
-              <small class="text-muted">{element.album_type}</small><br>
-              <h3>{element.name}</h3><br>
-              <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
-              <small class="text-muted">{element.release_date.split("-")[0]}</small>
+            <div class="col-auto">
+              <img src="{element.images[1].url}" class="img-thumbnail" width="200" height="200" alt="thumbnail">
             </div>
-            <div class="col text-end">
-              {#if element.average_rating === -1}
-                <p class="text-muted">No ratings</p>
-              {:else}
-                <figure class="figure img-thumbnail bg-light">
-                  <p class="display-4">{element.average_rating/10}</p>
-                </figure><br>
-                <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
-              {/if}
-              {#if element.current_user_rating === -1}
-                <p class="text-muted">Not yet rated by you</p>
-              {:else}
-                <p class="text-muted">Your rating: {element.current_user_rating}</p>
-              {/if}
+            <div class="col">
+              <div class="row">
+                <div class="col">
+                  <small class="text-muted">{element.album_type}</small><br>
+                  <h3>{element.name}</h3><br>
+                  <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
+                  <small class="text-muted">{element.release_date.split("-")[0]}</small>
+                </div>
+                <div class="col text-end">
+                  {#if element.average_rating === -1}
+                    <p class="text-muted">No ratings</p>
+                  {:else}
+                    <figure class="figure img-thumbnail bg-light">
+                      <p class="display-4">{element.average_rating/10}</p>
+                    </figure><br>
+                    <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
+                  {/if}
+                  {#if element.current_user_rating === -1}
+                    <p class="text-muted">Not yet rated by you</p>
+                  {:else}
+                    <p class="text-muted">Your rating: {element.current_user_rating}</p>
+                  {/if}
+                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}">Rate</button>
+                </div>
+              </div>
+              <div class="collapse mt-3" id="collapse{element.id}">
+                <div class="card card-body">
+                  <div class="row align-items-center justify-content-end">
+                    <div class="col">
+                      <label for="range{element.id}" class="form-label">Your rating: {rangeValue/10 ? rangeValue/10 : ''}</label>
+                      <input type="range" class="form-range" id="range{element.id}" min="0" max="100" step="5" bind:value={rangeValue}>
+                    </div>
+                    <div class="col">
+                      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}">test_close</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </li>
