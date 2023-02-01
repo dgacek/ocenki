@@ -43,7 +43,8 @@
   }
 
 
-  const login = () => {
+  const login = (event) => {
+    event.preventDefault();
     fetch("/api/login", {
       method: "POST",
       headers: {
@@ -107,7 +108,8 @@
   };
 
 
-  const search = () => {
+  const search = (event) => {
+    event.preventDefault();
     fetch(`/api/search?q=${searchQuery.replace('&', '%26')}`, {
       method: "GET",
       credentials: "include",
@@ -169,13 +171,35 @@
       });
   };
 
+  const rate_delete = (album_id, array_index) => {
+    fetch("/api/rate", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ album_id: album_id }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.bootstrap.Collapse.getInstance(document.getElementById(`collapse${album_id}`)).hide();
+        items[array_index].average_rating = data.average_rating;
+        items[array_index].ratings_count = data.ratings_count;
+        items[array_index].current_user_rating = data.current_user_rating;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
 </script>
 
 
 <svelte:head>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css"/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,100,1,0" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,100,1,0" />
 </svelte:head>
 
 
@@ -185,8 +209,12 @@
     padding: 0;
   }
 
-  :global(a:visited) {
+  :global(a[class*="nav-link"]:visited) {
     color: var(--bs-nav-link-color);
+  }
+
+  :global(a[class*="badge"]:visited) {
+    color: var(--bs-badge-color);
   }
 
   .login-background {
@@ -209,6 +237,10 @@
     position: fixed;
     bottom: 10px;
     z-index: 999;
+  }
+
+  .text-outline {
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
   }
 </style>
   
@@ -256,14 +288,16 @@
   {#if currentPage === "main"}
     <div class="container-sm mt-3">
       <div class="row justify-content-center">
-        <div class="input-group">
-          <input class="form-control form-control-lg" type="text" bind:value={searchQuery} placeholder="Search">
-          <button class="btn btn-outline-secondary" type="button" on:click={search}>
-            <span class="material-symbols-outlined pt-2">
-              search
-            </span>
-          </button>
-        </div>
+        <form on:submit={search}>
+          <div class="input-group">
+            <input class="form-control form-control-lg" type="text" bind:value={searchQuery} placeholder="Search">
+            <button class="btn btn-outline-secondary" type="button" on:click={search}>
+              <span class="material-symbols-outlined pt-2">
+                search
+              </span>
+            </button>
+          </div>
+        </form>
       </div>
       <ul class="list-group">
         {#each items as element}
@@ -276,7 +310,7 @@
               <div class="row">
                 <div class="col">
                   <small class="text-muted">{element.album_type}</small><br>
-                  <h3>{element.name}</h3><br>
+                  <p><span class="h3">{element.name} </span><a class="badge rounded-pill bg-success btn" href="{element.external_urls.spotify}" target="_blank" rel="noopener noreferrer">Play on Spotify</a></p>
                   <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
                   <small class="text-muted">{element.release_date.split("-")[0]}</small>
                 </div>
@@ -284,8 +318,8 @@
                   {#if element.average_rating === -1}
                     <p class="text-muted">No ratings</p>
                   {:else}
-                    <figure class="figure img-thumbnail {element.average_rating < 40 ? "bg-danger" : (element.average_rating < 70 ? "bg-warning" : "bg-success")}" style="--bs-bg-opacity: .5;">
-                      <p class="display-4">{element.average_rating === 100 ? element.average_rating/10 : (element.average_rating/10).toFixed(1)}</p>
+                    <figure class="figure img-thumbnail text-white {element.average_rating < 40 ? "bg-danger" : (element.average_rating < 70 ? "bg-warning" : "bg-success")}">
+                      <p class="display-4 fw-semibold text-outline">{element.average_rating === 100 ? element.average_rating/10 : (element.average_rating/10).toFixed(1)}</p>
                     </figure><br>
                     <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
                   {/if}
@@ -301,19 +335,20 @@
               <div class="collapse mt-3" id="collapse{element.id}">
                 <div class="card card-body">
                   <div class="row align-items-center justify-content-evenly">
-                    <div class="col-2 justify-content-center">
-                      <figure class="figure img-thumbnail {rangeValue < 40 ? "bg-danger" : (rangeValue < 70 ? "bg-warning" : "bg-success")}" style="--bs-bg-opacity: .5;">
-                        <p class="display-4">{rangeValue === 100 ? rangeValue/10 : (rangeValue/10).toFixed(1)}</p>
+                    <div class="col-2 d-flex align-items-center justify-content-center" style="width: 12.5%">
+                      <figure class="figure img-thumbnail text-white my-auto {rangeValue < 40 ? "bg-danger" : (rangeValue < 70 ? "bg-warning" : "bg-success")}">
+                        <p class="display-4 fw-semibold text-outline">{rangeValue === 100 ? rangeValue/10 : (rangeValue/10).toFixed(1)}</p>
                       </figure>
                     </div>
-                    <div class="col justify-content-center">
+                    <div class="col d-flex justify-content-center">
                       <input type="range" class="form-range" id="range{element.id}" min="0" max="100" step="5" bind:value={rangeValue}>
                     </div>
-                    <div class="col-2 justify-content-center">
+                    <div class="col-2 d-flex flex-column justify-content-center">
                       {#if element.current_user_rating === -1}
                         <button class="btn btn-primary" type="button" on:click={() => {rate(element.id, items.indexOf(element))}}>Rate</button>
                       {:else}
-                        <button class="btn btn-primary" type="button" on:click={() => {rate_update(element.id, items.indexOf(element))}}>Change rating</button>
+                        <button class="btn btn-primary m-1" type="button" on:click={() => {rate_update(element.id, items.indexOf(element))}}>Change rating</button>
+                        <button class="btn btn-danger m-1" type="button" on:click={() => {rate_delete(element.id, items.indexOf(element))}}>Delete rating</button>
                       {/if}
                     </div>
                   </div>
@@ -345,7 +380,7 @@
           <input type="password" class="form-control" placeholder="Password" bind:value={password} />
         </div>
         <div class="row justify-content-evenly">
-          <button type="button" class="btn btn-primary col-5" on:click={login}>Login</button>
+          <button type="submit" class="btn btn-primary col-5" on:click={login}>Login</button>
           <button type="button" class="btn btn-secondary col-5" on:click={register}>Register</button>
         </div>
       </form>

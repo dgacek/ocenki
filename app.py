@@ -244,6 +244,18 @@ def update_rating():
     return jsonify({"average_rating": get_average_rating(album_id), "ratings_count": get_ratings_count(album_id), "current_user_rating": rating})
 
 
+@app.route("/api/rate", methods=["DELETE"])
+@login_required
+def delete_rating():
+    data = request.json
+    album_id = data.get("album_id")
+    session = dbsession()
+    record = session.query(Rating).filter_by(user_id=current_user.id, album_spotify_id=album_id).first()
+    session.delete(record)
+    session.commit()
+    return jsonify({"average_rating": get_average_rating(album_id), "ratings_count": get_ratings_count(album_id), "current_user_rating": -1})
+
+
 @app.route("/api/getsession")
 def check_session():
     if current_user.is_authenticated:
