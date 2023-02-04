@@ -144,6 +144,16 @@ def append_ratings(search_output, current_user_id):
     return result
 
 
+def append_ratings_2(get_albums_output, current_user_id):
+    result = get_albums_output
+    for x in range(len(get_albums_output["albums"])):
+        result["albums"][x]["average_rating"] = get_average_rating(get_albums_output["albums"][x]["id"])
+        result["albums"][x]["ratings_count"] = get_ratings_count(get_albums_output["albums"][x]["id"])
+        result["albums"][x]["current_user_rating"] = get_current_user_rating(get_albums_output["albums"][x]["id"], current_user_id)
+
+    return result
+
+
 class SessionUser(UserMixin):
     ...
 
@@ -254,6 +264,20 @@ def delete_rating():
     session.delete(record)
     session.commit()
     return jsonify({"average_rating": get_average_rating(album_id), "ratings_count": get_ratings_count(album_id), "current_user_rating": -1})
+
+
+@app.route("/api/myratings", methods=["GET"])
+@login_required
+def get_albums_rated_by_current_user():
+    session = dbsession()
+    def get_album_id(element):
+        return element.album_spotify_id
+
+    records = session.query(Rating).filter_by(user_id=current_user.id).all()
+    albums = map(get_album_id, records)
+    album_ids = ','.join(albums)
+    response = requests.get("https://api.spotify.com/v1/albums?ids="+album_ids, headers={"Authorization": "Bearer "+get_spotify_token(spotify_token).token})
+    return append_ratings_2(response.json(), current_user.id)
 
 
 @app.route("/api/getsession")

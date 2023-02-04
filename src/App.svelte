@@ -11,6 +11,7 @@
   let loginAlertContainer;
   let searchQuery;
   let items = [];
+  let myratings = [];
   let rangeValue = 50;
   
 
@@ -171,6 +172,29 @@
       });
   };
 
+  const rate_update_2 = (album_id, array_index) => {
+    fetch("/api/rate", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ album_id: album_id, rating: rangeValue }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.bootstrap.Collapse.getInstance(document.getElementById(`collapse${album_id}`)).hide();
+        myratings[array_index].average_rating = data.average_rating;
+        myratings[array_index].ratings_count = data.ratings_count;
+        myratings[array_index].current_user_rating = data.current_user_rating;
+        items = [];
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
   const rate_delete = (album_id, array_index) => {
     fetch("/api/rate", {
       method: "DELETE",
@@ -187,6 +211,45 @@
         items[array_index].average_rating = data.average_rating;
         items[array_index].ratings_count = data.ratings_count;
         items[array_index].current_user_rating = data.current_user_rating;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
+  const rate_delete_2 = (album_id, array_index) => {
+    fetch("/api/rate", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+      },
+      credentials: "include",
+      body: JSON.stringify({ album_id: album_id }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        let myratings2 = myratings;
+        myratings2.splice(array_index, 1);
+        myratings = myratings2;
+        items = [];
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
+  const get_my_ratings = () => {
+    fetch(`/api/myratings`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "X-CSRFToken": csrf
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        myratings = data.albums;
       })
       .catch((err) => {
         console.log(err);
@@ -266,7 +329,7 @@
               <a class="nav-link active" href="#">My ratings</a>
             {:else}
               <!-- svelte-ignore a11y-invalid-attribute -->
-              <a class="nav-link" on:click={() => {currentPage = "profile"}} href="#">My ratings</a>
+              <a class="nav-link" on:click={() => {get_my_ratings(); currentPage = "profile";}} href="#">My ratings</a>
             {/if}
           </li>
         </ul>
@@ -361,9 +424,68 @@
       </ul>
     </div>
   {:else if currentPage === "profile"}
-    <h1>user profile ({username})</h1>
-    <button type="button" on:click={() => {currentPage = "main"}}>main page</button>
-    <button type="button" on:click={logout}>logout</button>
+    <div class="container-sm mt-3">
+      <ul class="list-group">
+        {#each myratings as element}
+        <li class="list-group-item">
+          <div class="row">
+            <div class="col-auto">
+              <img src="{element.images[1].url}" class="img-thumbnail" width="200" height="200" alt="thumbnail">
+            </div>
+            <div class="col">
+              <div class="row">
+                <div class="col">
+                  <small class="text-muted">{element.album_type}</small><br>
+                  <p><span class="h3">{element.name} </span><a class="badge rounded-pill bg-success btn" href="{element.external_urls.spotify}" target="_blank" rel="noopener noreferrer">Play on Spotify</a></p>
+                  <p class="text-muted">{JSONPath({path: "$.artists[*].name", json: element}).join(', ')}</p>
+                  <small class="text-muted">{element.release_date.split("-")[0]}</small>
+                </div>
+                <div class="col text-end">
+                  {#if element.average_rating === -1}
+                    <p class="text-muted">No ratings</p>
+                  {:else}
+                    <figure class="figure img-thumbnail text-white {element.average_rating < 40 ? "bg-danger" : (element.average_rating < 70 ? "bg-warning" : "bg-success")}">
+                      <p class="display-4 fw-semibold text-outline">{element.average_rating === 100 ? element.average_rating/10 : (element.average_rating/10).toFixed(1)}</p>
+                    </figure><br>
+                    <small class="text-muted">Average from {element.ratings_count} rating{element.ratings_count === 1 ? '' : 's'}</small>
+                  {/if}
+                  {#if element.current_user_rating === -1}
+                    <p class="text-muted">Not yet rated by you</p>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}">Rate</button>
+                  {:else}
+                    <p class="text-muted">Your rating: {element.current_user_rating === 100 ? element.current_user_rating/10 : (element.current_user_rating/10).toFixed(1)}</p>
+                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{element.id}" aria-expanded="false" aria-controls="collapse{element.id}" on:click={() => rangeValue = element.current_user_rating}>Change rating</button>
+                  {/if}
+                </div>
+              </div>
+              <div class="collapse mt-3" id="collapse{element.id}">
+                <div class="card card-body">
+                  <div class="row align-items-center justify-content-evenly">
+                    <div class="col-2 d-flex align-items-center justify-content-center" style="width: 12.5%">
+                      <figure class="figure img-thumbnail text-white my-auto {rangeValue < 40 ? "bg-danger" : (rangeValue < 70 ? "bg-warning" : "bg-success")}">
+                        <p class="display-4 fw-semibold text-outline">{rangeValue === 100 ? rangeValue/10 : (rangeValue/10).toFixed(1)}</p>
+                      </figure>
+                    </div>
+                    <div class="col d-flex justify-content-center">
+                      <input type="range" class="form-range" id="range{element.id}" min="0" max="100" step="5" bind:value={rangeValue}>
+                    </div>
+                    <div class="col-2 d-flex flex-column justify-content-center">
+                      {#if element.current_user_rating === -1}
+                        <button class="btn btn-primary" type="button" on:click={() => {rate(element.id, myratings.indexOf(element))}}>Rate</button>
+                      {:else}
+                        <button class="btn btn-primary m-1" type="button" on:click={() => {rate_update_2(element.id, myratings.indexOf(element))}}>Change rating</button>
+                        <button class="btn btn-danger m-1" type="button" on:click={() => {rate_delete_2(element.id, myratings.indexOf(element))}}>Delete rating</button>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 
 {:else}
