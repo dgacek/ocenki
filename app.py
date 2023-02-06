@@ -16,8 +16,8 @@ from flask_cors import CORS
 from passlib.hash import sha512_crypt
 
 crypt_salt = "menpwgra"
-spotify_client_id = "88acafcfdefa48ff962c05ad0df9bcb5"
-spotify_client_secret = "60475eb74e474702bbb80564b88b480f"
+spotify_client_id = "" # <------- FILL IN
+spotify_client_secret = "" # <--- FILL IN
 
 class SpotifyToken:
     def __init__(self, token, expiry_date):
@@ -96,6 +96,7 @@ class User(db):
 
 engine = create_engine("sqlite:///:memory:", echo=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 # engine = create_engine("sqlite:///database.db", echo=True)
+# engine = create_engine("postgresql://postgres:v6isGVotMHG2ACj@ocenki-db.internal:5432", echo=True)
 db.metadata.create_all(engine)
 dbsession = sessionmaker(bind=engine)
 
