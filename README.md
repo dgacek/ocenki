@@ -10,7 +10,21 @@ Backend in Flask; frontend in Svelte and served through Jinja.
 - Ratings for each album are stored in a database, attached to the album's Spotify ID 
 
 ## Getting Started
-Requirements: Python >= 3.11, pip, Node.js >= 18.13, npm
+### Requirements
+- Python >= 3.11 
+- pip
+- Node.js >= 18.13
+- npm
+
+### Spotify API credentials
+You will need to generate your own Client ID and Client Secret for the Spotify API. You can do that [here](https://developer.spotify.com/dashboard/applications). These credentials have to be placed inside of their dedicated variables in the app.py file (as strings).
+```python
+spotify_client_id = "" # <------- FILL IN
+spotify_client_secret = "" # <--- FILL IN
+```
+While you're at it, it's also recommended that you change the value of the variable `crypt_salt` to a different string, for security.
+
+### Building the app
 ```sh
 $ python -m venv env
 $ source env/bin/activate  --  on Windows use this instead: & env/Scripts/Activate.ps1
