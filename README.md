@@ -2,7 +2,7 @@
 
 Web application for rating Spotify albums.  
 SPA with session-based auth.  
-Backend in Flask, frontend in Svelte and served through Jinja.
+Backend in Flask; frontend in Svelte and served through Jinja.
 
 ## App concept
 
